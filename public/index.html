@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:       #1a2744;
+      --navy-hover: #243460;
+      --green:      #16a34a;
+      --red:        #dc2626;
+      --green-bg:   #f0fdf4;
+      --red-bg:     #fef2f2;
+      --page-bg:    #f8f9fa;
+      --card-bg:    #ffffff;
+      --border:     #e5e7eb;
+      --text:       #1f2937;
+      --dim:        #6b7280;
+      --alt-row:    #f9fafb;
+      --shadow:     0 1px 3px rgba(0,0,0,0.07), 0 6px 20px rgba(0,0,0,0.06);
+    }
+
+    body {
+      background: var(--page-bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Hero ───────────────────────────────────────────── */
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 52px 24px 44px;
+      gap: 6px;
+    }
+
+    .hero h1 {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--navy);
+      letter-spacing: -0.5px;
+    }
+
+    .hero p {
+      font-size: 13px;
+      color: var(--dim);
+      margin-bottom: 12px;
+    }
+
+    .ticker-form {
+      display: flex;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    }
+
+    #ticker-input {
+      font-family: inherit;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      width: 130px;
+      padding: 13px 18px;
+      border: 2px solid var(--border);
+      border-right: none;
+      border-radius: 10px 0 0 10px;
+      outline: none;
+      color: var(--navy);
+      background: white;
+      transition: border-color 0.15s;
+    }
+
+    #ticker-input:focus { border-color: var(--navy); }
+
+    #fetch-btn {
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      padding: 13px 28px;
+      background: var(--navy);
+      color: white;
+      border: 2px solid var(--navy);
+      border-radius: 0 10px 10px 0;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    #fetch-btn:hover:not(:disabled) {
+      background: var(--navy-hover);
+      border-color: var(--navy-hover);
+    }
+
+    #fetch-btn:disabled { opacity: 0.45; cursor: default; }
+
+    #status {
+      margin-top: 10px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--dim);
+      min-height: 18px;
+    }
+
+    /* ── Content container ───────────────────────────────── */
+    .content {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 0 24px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── Cards ───────────────────────────────────────────── */
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--dim);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ── Excursions table ────────────────────────────────── */
+    #excursions-wrap { overflow-x: auto; }
+
+    table { border-collapse: collapse; width: 100%; }
+
+    thead tr { background: var(--navy); }
+
+    th {
+      text-align: right;
+      padding: 11px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.85);
+      white-space: nowrap;
+    }
+
+    th.col-date   { text-align: left; }
+    th.col-marker { text-align: left; width: 1%; }
+
+    td {
+      text-align: right;
+      padding: 9px 14px;
+      font-size: 13px;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    td.col-date   { text-align: left; color: var(--dim); font-weight: 500; }
+    td.col-marker { text-align: left; }
+
+    tbody tr:nth-child(even)  { background: var(--alt-row); }
+    tbody tr.row-max-up       { background: var(--green-bg) !important; }
+    tbody tr.row-min-down     { background: var(--red-bg) !important; }
+
+    tr:last-child td { border-bottom: none; }
+
+    .dir-cell { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font-weight: 600; font-size: 12px; }
+    .dir-dot  { font-size: 8px; line-height: 1; }
+    .dir-u    { color: var(--green); }
+    .dir-d    { color: var(--red); }
+    .dir-anchor { color: var(--dim); font-weight: 400; }
+
+    .up-pct   { color: var(--green); font-weight: 500; }
+    .down-pct { color: var(--red);   font-weight: 500; }
+    .zero     { color: var(--dim); }
+
+    .marker {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--dim);
+      background: var(--page-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      white-space: nowrap;
+    }
+
+    /* ── Chat section ────────────────────────────────────── */
+    #chat-section { display: flex; flex-direction: column; }
+
+    #chat-log {
+      height: 300px;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .empty-state {
+      color: var(--dim);
+      font-size: 13px;
+      margin: auto;
+      text-align: center;
+    }
+
+    .msg { display: flex; flex-direction: column; gap: 4px; max-width: 75%; }
+
+    .msg-user  { align-self: flex-end; align-items: flex-end; }
+    .msg-agent { align-self: flex-start; align-items: flex-start; }
+    .msg-error { align-self: flex-start; align-items: flex-start; }
+
+    .msg-name {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .msg-user  .msg-name { color: var(--navy); }
+    .msg-agent .msg-name { color: var(--dim); }
+    .msg-error .msg-name { color: var(--red); }
+
+    .msg-bubble {
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 13.5px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+
+    .msg-user  .msg-bubble { background: var(--navy);  color: white; border-radius: 14px 14px 4px 14px; }
+    .msg-agent .msg-bubble { background: #f3f4f6; color: var(--text); border-radius: 14px 14px 14px 4px; }
+    .msg-error .msg-bubble { background: var(--red-bg); color: var(--red); border-radius: 14px 14px 14px 4px; }
+
+    /* ── Chat input bar ──────────────────────────────────── */
+    #chat-bar {
+      display: flex;
+      border-top: 1px solid var(--border);
+    }
+
+    #chat-input {
+      flex: 1;
+      font-family: inherit;
+      font-size: 14px;
+      border: none;
+      background: transparent;
+      padding: 14px 18px;
+      color: var(--text);
+      outline: none;
+    }
+
+    #chat-input::placeholder { color: var(--dim); }
+    #chat-input:disabled { opacity: 0.4; }
+
+    #chat-send {
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      border-left: 1px solid var(--border);
+      background: transparent;
+      padding: 0 22px;
+      color: var(--navy);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    #chat-send:hover:not(:disabled) { background: var(--page-bg); }
+    #chat-send:disabled { opacity: 0.35; cursor: default; }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Stock Agent</h1>
+  <p>Enter a ticker symbol to load 14-day excursion data</p>
+  <div class="ticker-form">
+    <input id="ticker-input" type="text" placeholder="AAPL" maxlength="5" autocomplete="off" spellcheck="false" />
+    <button id="fetch-btn">Fetch</button>
+  </div>
+  <div id="status"></div>
+</div>
+
+<div class="content">
+  <div id="table-section" style="display:none" class="card">
+    <div class="card-header">
+      <span id="table-label"></span>
+    </div>
+    <div id="excursions-wrap">
+      <table id="excursions-table">
+        <thead>
+          <tr>
+            <th class="col-date">Date</th>
+            <th>Open</th>
+            <th>High</th>
+            <th>Low</th>
+            <th>Close</th>
+            <th>Dir</th>
+            <th>Volume</th>
+            <th>Max Up%</th>
+            <th>Max Down%</th>
+            <th class="col-marker"></th>
+          </tr>
+        </thead>
+        <tbody id="excursions-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="chat-section" class="card">
+    <div class="card-header">Ask a question</div>
+    <div id="chat-log">
+      <div class="empty-state">Load a ticker to begin</div>
+    </div>
+    <div id="chat-bar">
+      <input id="chat-input" type="text" placeholder="Ask a question about this stock…" disabled autocomplete="off" />
+      <button id="chat-send" disabled>Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentTicker = null;
+  let currentBars   = [];
+  let currentSnap   = null;
+
+  const tickerInput    = document.getElementById('ticker-input');
+  const fetchBtn       = document.getElementById('fetch-btn');
+  const statusEl       = document.getElementById('status');
+  const tableSection   = document.getElementById('table-section');
+  const tableLabel     = document.getElementById('table-label');
+  const excursionsBody = document.getElementById('excursions-body');
+  const chatLog        = document.getElementById('chat-log');
+  const chatInput      = document.getElementById('chat-input');
+  const chatSend       = document.getElementById('chat-send');
+
+  function setStatus(msg, color) {
+    statusEl.textContent = msg;
+    statusEl.style.color = color || '#6b7280';
+  }
+
+  function fmtDate(ts) {
+    return new Date(ts).toLocaleDateString('en-US', {
+      timeZone: 'America/New_York',
+      month: '2-digit', day: '2-digit', year: '2-digit',
+    });
+  }
+
+  function fmtVol(n) {
+    return Math.floor(n).toLocaleString('en-US');
+  }
+
+  function td(text, cls) {
+    const el = document.createElement('td');
+    if (cls) el.className = cls;
+    el.textContent = text;
+    return el;
+  }
+
+  function renderTable(bars) {
+    const upMoves   = [];
+    const downMoves = [];
+    for (let i = 1; i < bars.length; i++) {
+      const pc = bars[i - 1].close;
+      upMoves.push((bars[i].high - pc) / pc * 100);
+      downMoves.push((bars[i].low  - pc) / pc * 100);
+    }
+
+    const maxUp      = Math.max(...upMoves);
+    const minDown    = Math.min(...downMoves);
+    const maxUpIdx   = upMoves.indexOf(maxUp);
+    const minDownIdx = downMoves.indexOf(minDown);
+
+    const rows = [];
+    rows.push({ bar: bars[0], dir: null, up: null, down: null, isMaxUp: false, isMinDown: false });
+    for (let i = 0; i < upMoves.length; i++) {
+      rows.push({
+        bar:      bars[i + 1],
+        dir:      bars[i + 1].close > bars[i].close ? 'U' : 'D',
+        up:       upMoves[i],
+        down:     downMoves[i],
+        isMaxUp:  i === maxUpIdx,
+        isMinDown: i === minDownIdx,
+      });
+    }
+    rows.reverse();
+
+    excursionsBody.innerHTML = '';
+    for (const row of rows) {
+      const tr = document.createElement('tr');
+      if (row.isMaxUp)   tr.classList.add('row-max-up');
+      if (row.isMinDown) tr.classList.add('row-min-down');
+
+      tr.appendChild(td(fmtDate(row.bar.timestamp), 'col-date'));
+      tr.appendChild(td(row.bar.open.toFixed(2)));
+      tr.appendChild(td(row.bar.high.toFixed(2)));
+      tr.appendChild(td(row.bar.low.toFixed(2)));
+      tr.appendChild(td(row.bar.close.toFixed(2)));
+
+      // Dir cell — dot + letter
+      const dirTd = document.createElement('td');
+      if (row.dir === null) {
+        dirTd.innerHTML = '<span class="dir-anchor">—</span>';
+      } else {
+        const cls = row.dir === 'U' ? 'dir-u' : 'dir-d';
+        dirTd.innerHTML =
+          `<span class="dir-cell ${cls}">` +
+            `<span class="dir-dot">●</span>${row.dir}` +
+          `</span>`;
+      }
+      tr.appendChild(dirTd);
+
+      tr.appendChild(td(fmtVol(row.bar.volume)));
+
+      if (row.up === null) {
+        tr.appendChild(td('—', 'zero'));
+        tr.appendChild(td('—', 'zero'));
+      } else {
+        tr.appendChild(td(`+${row.up.toFixed(2)}%`, 'up-pct'));
+        tr.appendChild(td(`${row.down.toFixed(2)}%`, 'down-pct'));
+      }
+
+      const markerTd = document.createElement('td');
+      markerTd.className = 'col-marker';
+      if (row.isMaxUp && row.isMinDown) {
+        markerTd.innerHTML = '<span class="marker">biggest up &amp; down</span>';
+      } else if (row.isMaxUp) {
+        markerTd.innerHTML = '<span class="marker">biggest up</span>';
+      } else if (row.isMinDown) {
+        markerTd.innerHTML = '<span class="marker">biggest down</span>';
+      }
+      tr.appendChild(markerTd);
+
+      excursionsBody.appendChild(tr);
+    }
+  }
+
+  function appendMsg(role, text) {
+    const empty = chatLog.querySelector('.empty-state');
+    if (empty) empty.remove();
+
+    const wrap = document.createElement('div');
+    wrap.className = `msg msg-${role}`;
+
+    const name = document.createElement('div');
+    name.className = 'msg-name';
+    name.textContent = role === 'user' ? 'You' : role === 'agent' ? 'Agent' : 'Error';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.textContent = text;
+
+    wrap.appendChild(name);
+    wrap.appendChild(bubble);
+    chatLog.appendChild(wrap);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  async function doFetch() {
+    const ticker = tickerInput.value.toUpperCase().trim();
+    if (!ticker) return;
+
+    fetchBtn.disabled = true;
+    setStatus(`Fetching ${ticker}…`);
+
+    try {
+      const res  = await fetch('/api/ticker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unknown error');
+
+      currentTicker = data.ticker;
+      currentBars   = data.bars;
+      currentSnap   = data.snapshot;
+
+      tableLabel.textContent = `${data.ticker}  —  ${data.bars.length} trading days`;
+      tableSection.style.display = '';
+      renderTable(data.bars);
+
+      chatLog.innerHTML = '';
+      chatInput.disabled = false;
+      chatSend.disabled  = false;
+      chatInput.placeholder = `Ask a question about ${data.ticker}…`;
+
+      setStatus(`${data.ticker} loaded`, '#16a34a');
+    } catch (err) {
+      setStatus(err.message, '#dc2626');
+    } finally {
+      fetchBtn.disabled = false;
+    }
+  }
+
+  async function doChat() {
+    const message = chatInput.value.trim();
+    if (!message || !currentTicker) return;
+
+    chatInput.value    = '';
+    chatInput.disabled = true;
+    chatSend.disabled  = true;
+    appendMsg('user', message);
+
+    try {
+      const res  = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, ticker: currentTicker, bars: currentBars, snapshot: currentSnap }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unknown error');
+      appendMsg('agent', data.reply);
+    } catch (err) {
+      appendMsg('error', err.message);
+    } finally {
+      chatInput.disabled = false;
+      chatSend.disabled  = false;
+      chatInput.focus();
+    }
+  }
+
+  fetchBtn.addEventListener('click', doFetch);
+  tickerInput.addEventListener('keydown', e => { if (e.key === 'Enter') doFetch(); });
+  chatSend.addEventListener('click', doChat);
+  chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') doChat(); });
+</script>
+</body>
+</html>
