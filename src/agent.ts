@@ -51,7 +51,7 @@ function buildSystemPrompt(data: StockData): string {
     `You are a concise stock analysis assistant for ${ticker}. ` +
     `Answer questions about this stock using only the data provided below. ` +
     `Keep answers brief and focused.\n\n` +
-    `## 14-Day OHLC Data\n\n` +
+    `## 21-Day OHLC Data\n\n` +
     `${buildOhlcTable(data)}\n` +
     `## Live Snapshot\n\n` +
     `${snap}\n\n` +

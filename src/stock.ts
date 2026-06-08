@@ -105,7 +105,7 @@ export async function fetchStockData(ticker: string): Promise<StockData> {
   const today = new Date();
   const toDate = formatDate(today);
   const fromDate = new Date(today);
-  fromDate.setDate(fromDate.getDate() - 30);
+  fromDate.setDate(fromDate.getDate() - 45);
   const fromStr = formatDate(fromDate);
 
   const aggsPath = `/v2/aggs/ticker/${ticker}/range/1/day/${fromStr}/${toDate}?adjusted=true&sort=asc&apiKey=${apiKey}`;
@@ -135,7 +135,7 @@ export async function fetchStockData(ticker: string): Promise<StockData> {
       volume: r.v,
     }));
 
-  const bars = allBars.slice(-14);
+  const bars = allBars.slice(-21);
 
   if (bars.length < 2) {
     throw new Error(`Not enough data for ${ticker}: only ${bars.length} completed bar(s)`);

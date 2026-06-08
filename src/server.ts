@@ -4,7 +4,7 @@ dotenv.config();
 import express, { Request, Response } from 'express';
 import * as path from 'path';
 import { fetchStockData } from './stock';
-import { calcExcursions } from './calculations';
+import { calcExcursions, calcProjections } from './calculations';
 import { initAgent, chat } from './agent';
 import { Bar, Snapshot } from './types';
 
@@ -28,7 +28,8 @@ app.post('/api/ticker', async (req: Request, res: Response): Promise<void> => {
     const data = await fetchStockData(ticker.toUpperCase().trim());
     initAgent(data);
     const excursionsTable = stripAnsi(calcExcursions(data));
-    res.json({ ticker: data.ticker, bars: data.bars, snapshot: data.snapshot, excursionsTable });
+    const projections = calcProjections(data);
+    res.json({ ticker: data.ticker, bars: data.bars, snapshot: data.snapshot, excursionsTable, projections });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }

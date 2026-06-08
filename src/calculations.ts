@@ -16,6 +16,50 @@ function ts2date(ts: number): string {
   });
 }
 
+export interface Projections {
+  direction: 'UP' | 'DOWN';
+  label1: string;
+  label2: string;
+  proj1: number;
+  proj2: number;
+}
+
+export function calcProjections(data: StockData): Projections | null {
+  const { bars } = data;
+  if (bars.length < 2) return null;
+
+  const upMoves: number[] = [];
+  const downMoves: number[] = [];
+  for (let i = 1; i < bars.length; i++) {
+    const pc = bars[i - 1].close;
+    upMoves.push((bars[i].high - pc) / pc * 100);
+    downMoves.push((bars[i].low - pc) / pc * 100);
+  }
+
+  const recentClose = bars[bars.length - 1].close;
+  const isUp = recentClose > bars[bars.length - 2].close;
+
+  if (isUp) {
+    const sorted = [...upMoves].sort((a, b) => b - a);
+    return {
+      direction: 'UP',
+      label1: 'Proj High 1',
+      label2: 'Proj High 2',
+      proj1: recentClose * (1 + sorted[0] / 100),
+      proj2: recentClose * (1 + (sorted[1] ?? sorted[0]) / 100),
+    };
+  } else {
+    const sorted = [...downMoves].sort((a, b) => a - b);
+    return {
+      direction: 'DOWN',
+      label1: 'Proj Low 1',
+      label2: 'Proj Low 2',
+      proj1: recentClose * (1 + sorted[0] / 100),
+      proj2: recentClose * (1 + (sorted[1] ?? sorted[0]) / 100),
+    };
+  }
+}
+
 export function calcExcursions(data: StockData): string {
   const { bars } = data;
   if (bars.length < 2) return `${RED}✗ Not enough bar data for excursion analysis${R}`;
@@ -35,9 +79,11 @@ export function calcExcursions(data: StockData): string {
   const maxUpIdx = upMoves.indexOf(maxUp);
   const minDownIdx = downMoves.indexOf(minDown);
 
+  const proj = calcProjections(data);
+
   const SEP = '  ';
-  const W = { date: 8, price: 8, dir: 4, vol: 13, up: 9, down: 10 };
-  const totalWidth = W.date + W.price * 4 + W.dir + W.vol + W.up + W.down + SEP.length * 8;
+  const W = { date: 8, price: 8, dir: 4, vol: 13, up: 9, down: 10, proj: 12 };
+  const totalWidth = W.date + W.price * 4 + W.dir + W.vol + W.up + W.down + W.proj * 2 + SEP.length * 10;
 
   const hdr =
     'Date'.padStart(W.date) + SEP +
@@ -48,13 +94,15 @@ export function calcExcursions(data: StockData): string {
     'Dir'.padStart(W.dir) + SEP +
     'Volume'.padStart(W.vol) + SEP +
     'Max Up%'.padStart(W.up) + SEP +
-    'Max Down%'.padStart(W.down);
+    'Max Down%'.padStart(W.down) + SEP +
+    (proj ? proj.label1 : 'Proj 1').padStart(W.proj) + SEP +
+    (proj ? proj.label2 : 'Proj 2').padStart(W.proj);
   lines.push(`${DIM}${hdr}${R}`);
   lines.push(`${DIM}${'─'.repeat(totalWidth)}${R}`);
 
   const rows: string[] = [];
 
-  // bars[0] is anchor — show its own OHLC, "—" dir, zero excursion columns
+  // bars[0] is anchor — show its own OHLC, "—" dir, zero excursion columns, blank proj
   rows.push(
     `${YELLOW}${ts2date(bars[0].timestamp).padStart(W.date)}${R}${SEP}` +
     `${bars[0].open.toFixed(2).padStart(W.price)}${SEP}` +
@@ -64,7 +112,9 @@ export function calcExcursions(data: StockData): string {
     `${DIM}${'—'.padStart(W.dir)}${R}${SEP}` +
     `${Math.floor(bars[0].volume).toLocaleString('en-US').padStart(W.vol)}${SEP}` +
     `${GREEN}${'0.00%'.padStart(W.up)}${R}${SEP}` +
-    `${RED}${'0.00%'.padStart(W.down)}${R}`
+    `${RED}${'0.00%'.padStart(W.down)}${R}${SEP}` +
+    `${' '.repeat(W.proj)}${SEP}` +
+    `${' '.repeat(W.proj)}`
   );
 
   for (let i = 0; i < upMoves.length; i++) {
@@ -83,6 +133,13 @@ export function calcExcursions(data: StockData): string {
       marker = `  ${YELLOW}◀ biggest down${R}`;
     }
 
+    let projCols = `${SEP}${' '.repeat(W.proj)}${SEP}${' '.repeat(W.proj)}`;
+    if (i === upMoves.length - 1 && proj) {
+      const p1 = `$${proj.proj1.toFixed(2)}`.padStart(W.proj);
+      const p2 = `$${proj.proj2.toFixed(2)}`.padStart(W.proj);
+      projCols = `${SEP}${BOLD}${p1}${R}${SEP}${BOLD}${p2}${R}`;
+    }
+
     rows.push(
       `${YELLOW}${ts2date(bar.timestamp).padStart(W.date)}${R}${SEP}` +
       `${bar.open.toFixed(2).padStart(W.price)}${SEP}` +
@@ -93,6 +150,7 @@ export function calcExcursions(data: StockData): string {
       `${Math.floor(bar.volume).toLocaleString('en-US').padStart(W.vol)}${SEP}` +
       `${GREEN}${`+${up.toFixed(2)}%`.padStart(W.up)}${R}${SEP}` +
       `${RED}${`${down.toFixed(2)}%`.padStart(W.down)}${R}` +
+      projCols +
       marker
     );
   }
@@ -136,7 +194,7 @@ export function calcMomentum(data: StockData): string {
   const cc = pct >= 0 ? GREEN : RED;
 
   return (
-    `${BOLD}14-Day Momentum${R}\n` +
+    `${BOLD}21-Day Momentum${R}\n` +
     `  From: ${ts2date(bars[0].timestamp)} open  $${startOpen.toFixed(2)}\n` +
     `  To:   ${ts2date(bars[bars.length - 1].timestamp)} close $${endClose.toFixed(2)}\n` +
     `  Net:  ${cc}${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%${R}`
@@ -177,7 +235,7 @@ export function calcVwap(data: StockData): string {
   const vwap = tpvSum / volSum;
   const last = snapshot.lastPrice;
   const lines = [
-    `${BOLD}14-Day VWAP${R}`,
+    `${BOLD}21-Day VWAP${R}`,
     `  VWAP: $${vwap.toFixed(2)}`,
   ];
 
@@ -299,8 +357,8 @@ export function calcSummary(data: StockData): string {
     `${BOLD}${ticker} Summary${R}\n` +
     `  Last price:      $${(last ?? lastClose).toFixed(2)}\n` +
     `  Day change:      ${dayChgStr}\n` +
-    `  14-day range:    $${rangeLow.toFixed(2)} – $${rangeHigh.toFixed(2)}\n` +
-    `  14-day change:   ${pChgColor}${periodChange >= 0 ? '+' : ''}${periodChange.toFixed(2)}%${R}  ($${firstClose.toFixed(2)} → $${lastClose.toFixed(2)})`
+    `  21-day range:    $${rangeLow.toFixed(2)} – $${rangeHigh.toFixed(2)}\n` +
+    `  21-day change:   ${pChgColor}${periodChange >= 0 ? '+' : ''}${periodChange.toFixed(2)}%${R}  ($${firstClose.toFixed(2)} → $${lastClose.toFixed(2)})`
   );
 }
 

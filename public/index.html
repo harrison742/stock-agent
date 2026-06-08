@@ -190,6 +190,7 @@
     .up-pct   { color: var(--green); font-weight: 500; }
     .down-pct { color: var(--red);   font-weight: 500; }
     .zero     { color: var(--dim); }
+    .proj-val { color: var(--navy); font-weight: 700; }
 
     .marker {
       display: inline-block;
@@ -294,7 +295,7 @@
 
 <div class="hero">
   <h1>Stock Agent</h1>
-  <p>Enter a ticker symbol to load 14-day excursion data</p>
+  <p>Enter a ticker symbol to load 21-day excursion data</p>
   <div class="ticker-form">
     <input id="ticker-input" type="text" placeholder="AAPL" maxlength="5" autocomplete="off" spellcheck="false" />
     <button id="fetch-btn">Fetch</button>
@@ -320,6 +321,8 @@
             <th>Volume</th>
             <th>Max Up%</th>
             <th>Max Down%</th>
+            <th id="th-proj1"></th>
+            <th id="th-proj2"></th>
             <th class="col-marker"></th>
           </tr>
         </thead>
@@ -341,9 +344,10 @@
 </div>
 
 <script>
-  let currentTicker = null;
-  let currentBars   = [];
-  let currentSnap   = null;
+  let currentTicker      = null;
+  let currentBars        = [];
+  let currentSnap        = null;
+  let currentProjections = null;
 
   const tickerInput    = document.getElementById('ticker-input');
   const fetchBtn       = document.getElementById('fetch-btn');
@@ -351,6 +355,8 @@
   const tableSection   = document.getElementById('table-section');
   const tableLabel     = document.getElementById('table-label');
   const excursionsBody = document.getElementById('excursions-body');
+  const thProj1        = document.getElementById('th-proj1');
+  const thProj2        = document.getElementById('th-proj2');
   const chatLog        = document.getElementById('chat-log');
   const chatInput      = document.getElementById('chat-input');
   const chatSend       = document.getElementById('chat-send');
@@ -378,7 +384,11 @@
     return el;
   }
 
-  function renderTable(bars) {
+  function renderTable(bars, proj) {
+    // Update projection column headers
+    thProj1.textContent = proj ? proj.label1 : '';
+    thProj2.textContent = proj ? proj.label2 : '';
+
     const upMoves   = [];
     const downMoves = [];
     for (let i = 1; i < bars.length; i++) {
@@ -393,7 +403,7 @@
     const minDownIdx = downMoves.indexOf(minDown);
 
     const rows = [];
-    rows.push({ bar: bars[0], dir: null, up: null, down: null, isMaxUp: false, isMinDown: false });
+    rows.push({ bar: bars[0], dir: null, up: null, down: null, isMaxUp: false, isMinDown: false, isNewest: false });
     for (let i = 0; i < upMoves.length; i++) {
       rows.push({
         bar:      bars[i + 1],
@@ -402,6 +412,7 @@
         down:     downMoves[i],
         isMaxUp:  i === maxUpIdx,
         isMinDown: i === minDownIdx,
+        isNewest:  i === upMoves.length - 1,
       });
     }
     rows.reverse();
@@ -439,6 +450,15 @@
       } else {
         tr.appendChild(td(`+${row.up.toFixed(2)}%`, 'up-pct'));
         tr.appendChild(td(`${row.down.toFixed(2)}%`, 'down-pct'));
+      }
+
+      // Projected price columns — only populated on the most recent row
+      if (row.isNewest && proj) {
+        tr.appendChild(td(`$${proj.proj1.toFixed(2)}`, 'proj-val'));
+        tr.appendChild(td(`$${proj.proj2.toFixed(2)}`, 'proj-val'));
+      } else {
+        tr.appendChild(td(''));
+        tr.appendChild(td(''));
       }
 
       const markerTd = document.createElement('td');
@@ -493,13 +513,14 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Unknown error');
 
-      currentTicker = data.ticker;
-      currentBars   = data.bars;
-      currentSnap   = data.snapshot;
+      currentTicker      = data.ticker;
+      currentBars        = data.bars;
+      currentSnap        = data.snapshot;
+      currentProjections = data.projections ?? null;
 
       tableLabel.textContent = `${data.ticker}  —  ${data.bars.length} trading days`;
       tableSection.style.display = '';
-      renderTable(data.bars);
+      renderTable(data.bars, currentProjections);
 
       chatLog.innerHTML = '';
       chatInput.disabled = false;
