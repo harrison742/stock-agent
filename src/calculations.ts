@@ -74,10 +74,14 @@ export function calcExcursions(data: StockData): string {
     downMoves.push((bars[i].low - pc) / pc * 100);
   }
 
-  const maxUp = Math.max(...upMoves);
-  const minDown = Math.min(...downMoves);
-  const maxUpIdx = upMoves.indexOf(maxUp);
-  const minDownIdx = downMoves.indexOf(minDown);
+  const upRanked   = [...upMoves.keys()].sort((a, b) => upMoves[b] - upMoves[a]);
+  const downRanked = [...downMoves.keys()].sort((a, b) => downMoves[a] - downMoves[b]);
+  const maxUpIdx   = upRanked[0];
+  const secUpIdx   = upRanked.length >= 2 ? upRanked[1] : -1;
+  const minDownIdx = downRanked[0];
+  const secDownIdx = downRanked.length >= 2 ? downRanked[1] : -1;
+  const maxUp      = upMoves[maxUpIdx];
+  const minDown    = downMoves[minDownIdx];
 
   const proj = calcProjections(data);
 
@@ -124,14 +128,12 @@ export function calcExcursions(data: StockData): string {
     const dir = bar.close > bars[i].close ? 'U' : 'D';
     const dirColor = dir === 'U' ? GREEN : RED;
 
-    let marker = '';
-    if (i === maxUpIdx && i === minDownIdx) {
-      marker = `  ${YELLOW}◀ biggest up & down${R}`;
-    } else if (i === maxUpIdx) {
-      marker = `  ${YELLOW}◀ biggest up${R}`;
-    } else if (i === minDownIdx) {
-      marker = `  ${YELLOW}◀ biggest down${R}`;
-    }
+    const labels: string[] = [];
+    if (i === maxUpIdx)   labels.push('biggest up');
+    if (i === secUpIdx)   labels.push('2nd up');
+    if (i === minDownIdx) labels.push('biggest down');
+    if (i === secDownIdx) labels.push('2nd down');
+    const marker = labels.length > 0 ? `  ${YELLOW}◀ ${labels.join(' & ')}${R}` : '';
 
     let projCols = `${SEP}${' '.repeat(W.proj)}${SEP}${' '.repeat(W.proj)}`;
     if (i === upMoves.length - 1 && proj) {

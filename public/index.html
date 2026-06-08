@@ -397,21 +397,25 @@
       downMoves.push((bars[i].low  - pc) / pc * 100);
     }
 
-    const maxUp      = Math.max(...upMoves);
-    const minDown    = Math.min(...downMoves);
-    const maxUpIdx   = upMoves.indexOf(maxUp);
-    const minDownIdx = downMoves.indexOf(minDown);
+    const upRanked   = [...upMoves.keys()].sort((a, b) => upMoves[b] - upMoves[a]);
+    const downRanked = [...downMoves.keys()].sort((a, b) => downMoves[a] - downMoves[b]);
+    const maxUpIdx   = upRanked[0];
+    const secUpIdx   = upRanked[1] ?? -1;
+    const minDownIdx = downRanked[0];
+    const secDownIdx = downRanked[1] ?? -1;
 
     const rows = [];
-    rows.push({ bar: bars[0], dir: null, up: null, down: null, isMaxUp: false, isMinDown: false, isNewest: false });
+    rows.push({ bar: bars[0], dir: null, up: null, down: null, isMaxUp: false, isSecUp: false, isMinDown: false, isSecDown: false, isNewest: false });
     for (let i = 0; i < upMoves.length; i++) {
       rows.push({
-        bar:      bars[i + 1],
-        dir:      bars[i + 1].close > bars[i].close ? 'U' : 'D',
-        up:       upMoves[i],
-        down:     downMoves[i],
-        isMaxUp:  i === maxUpIdx,
+        bar:       bars[i + 1],
+        dir:       bars[i + 1].close > bars[i].close ? 'U' : 'D',
+        up:        upMoves[i],
+        down:      downMoves[i],
+        isMaxUp:   i === maxUpIdx,
+        isSecUp:   i === secUpIdx,
         isMinDown: i === minDownIdx,
+        isSecDown: i === secDownIdx,
         isNewest:  i === upMoves.length - 1,
       });
     }
@@ -461,14 +465,15 @@
         tr.appendChild(td(''));
       }
 
+      const labels = [];
+      if (row.isMaxUp)   labels.push('biggest up');
+      if (row.isSecUp)   labels.push('2nd up');
+      if (row.isMinDown) labels.push('biggest down');
+      if (row.isSecDown) labels.push('2nd down');
       const markerTd = document.createElement('td');
       markerTd.className = 'col-marker';
-      if (row.isMaxUp && row.isMinDown) {
-        markerTd.innerHTML = '<span class="marker">biggest up &amp; down</span>';
-      } else if (row.isMaxUp) {
-        markerTd.innerHTML = '<span class="marker">biggest up</span>';
-      } else if (row.isMinDown) {
-        markerTd.innerHTML = '<span class="marker">biggest down</span>';
+      if (labels.length > 0) {
+        markerTd.innerHTML = `<span class="marker">${labels.join(' &amp; ')}</span>`;
       }
       tr.appendChild(markerTd);
 
